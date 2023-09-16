@@ -1,0 +1,38 @@
+{
+  "name": "@enhance/enhance-plugin-performance-budget",
+  "version": "0.0.0",
+  "description": "A performance budget monitor plugin for Enhance apps",
+  "main": "src/plugins/performance-budget.js",
+  "scripts": {
+    "lint": "eslint . --fix",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@colors/colors": "^1.6.0",
+    "cli-table3": "^0.6.3",
+    "filesize": "^10.0.12"
+  },
+  "devDependencies": {
+    "@architect/eslint-config": "^2.1.2",
+    "eslint": "^8.49.0"
+  },
+  "eslintConfig": {
+    "extends": "@architect/eslint-config",
+    "overrides": [
+      {
+        "files": [
+          "*"
+        ],
+        "rules": {
+          "filenames/match-regex": [
+            "error",
+            "^[a-z0-9-_.$]+$",
+            true
+          ]
+        }
+      }
+    ]
+  }
+}
