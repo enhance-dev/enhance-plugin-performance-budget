@@ -120,7 +120,8 @@ function calculateScriptTagSizes (scriptTags, base) {
       }
     }
     else {
-      size += tag.length
+      let matches = tag.match(/>([^<]*)</gm)
+      size += matches[0] ? matches[0].length : tag.length
     }
   }
 
