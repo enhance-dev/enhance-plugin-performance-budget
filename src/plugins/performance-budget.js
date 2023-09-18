@@ -1,10 +1,11 @@
-const { readdirSync, statSync, readFileSync } = require('fs')
+const { mkdirSync, readdirSync, statSync, readFileSync, writeFileSync } = require('fs')
 const { join, parse } = require('path')
 const Table = require('cli-table3')
 const c = require('@colors/colors/safe')
 const http = require('http')
 const https = require('https')
 const { filesize } = require('filesize')
+const { buildSync } = require('esbuild')
 let JS_PAYLOAD_SIZE = null
 
 var oldSizes = {}
@@ -106,7 +107,7 @@ async function calculateJavaScriptPayloadSize (routes, base) {
   let payload = Promise.all(routes.map(async route => {
     const data = await readRoute(`http://localhost:3333${route}`)
     const scriptTags = data.match(/<script[\s\S]*?>[\s\S]*?<\/script>/gi)
-    const size = await calculateScriptTagSizes(scriptTags, base)
+    const size = await calculateScriptTagSizes(scriptTags, base, route)
     return {
       route,
       size,
@@ -116,27 +117,38 @@ async function calculateJavaScriptPayloadSize (routes, base) {
   return payload
 }
 
-async function calculateScriptTagSizes (scriptTags, base) {
-  let size = 0
+async function calculateScriptTagSizes (scriptTags, base, route) {
+  let scriptSrcArray = []
   for (let tag of scriptTags) {
     let src = tag.match(/src=(["'])(.*?)\1/)
     if (src) {
       let scriptPath = src[2]
       if (scriptPath.startsWith('/_public')) {
-        size += (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString().length
+        let localScript = (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString()
+        scriptSrcArray.push(localScript)
       }
       else if (scriptPath.startsWith('https:') || scriptPath.startsWith('http:')) {
         let data = await readRoute(scriptPath)
-        size += data.toString().length
+        scriptSrcArray.push(data.toString())
       }
     }
     else {
       let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
-      size += matches[1] ? matches[1].trim().length : tag.length
+      scriptSrcArray.push(matches[1].trim())
     }
   }
 
-  return size
+  mkdirSync(`${base}/.enhance/budget`, { recursive: true })
+  let combinedSrc = `${base}/.enhance/budget${route !== '/' ? `${route}.mjs` : `/index.mjs`}`
+  writeFileSync(combinedSrc, scriptSrcArray.join('\n'))
+  let builtSrc = `${base}/.enhance/budget${route !== '/' ? `${route}-out.js` : `/index-out.js`}`
+  buildSync({
+    entryPoints: [ combinedSrc ],
+    bundle: true,
+    outfile: builtSrc,
+  })
+
+  return (readFileSync(builtSrc)).toString().length
 }
 
 function saveSizes (sizes) {
@@ -148,7 +160,7 @@ function saveSizes (sizes) {
 async function reportOnJavaScriptPayloadSize (inventory) {
   console.log('\n\nPerformance Budget')
   let base = inventory.inv._project.cwd
-  let pages = join(inventory.inv._project.cwd, 'app', 'pages')
+  let pages = join(base, 'app', 'pages')
   let files = getAllFiles(pages)
   let routes = getAllRoutes(files, pages)
   let sizes = await calculateJavaScriptPayloadSize(routes, base)
@@ -161,8 +173,11 @@ module.exports = {
     async start ({ inventory }) {
       await reportOnJavaScriptPayloadSize(inventory)
     },
-    async watcher ({ inventory }) {
-      await reportOnJavaScriptPayloadSize(inventory)
+    async watcher ({ filename, inventory }) {
+      let base = join(inventory.inv._project.cwd, '.enhance', 'budget')
+      if (!filename.startsWith(base)) {
+        await reportOnJavaScriptPayloadSize(inventory)
+      }
     },
   },
   set: {
