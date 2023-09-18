@@ -131,8 +131,8 @@ async function calculateScriptTagSizes (scriptTags, base) {
       }
     }
     else {
-      let matches = tag.match(/>([^<]*)</gm)
-      size += matches[0] ? matches[0].length : tag.length
+      let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
+      size += matches[1] ? matches[1].trim().length : tag.length
     }
   }
 
