@@ -67,8 +67,9 @@ function printTable (routes) {
 function getAllRoutes (files, base) {
   return files.map(file => {
     let routeStr = parse(file.replace(base, ''))
-    let routeName = routeStr.name !== 'index' ? routeStr.name : ''
-    return `/${routeName}`
+    let root = routeStr.dir !== routeStr.root ? routeStr.dir : ''
+    let name = routeStr.name !== 'index' ? routeStr.name : ''
+    return `${root}/${name}`
   })
 }
 
