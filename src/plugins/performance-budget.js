@@ -58,7 +58,7 @@ function printTable (routes) {
     table.push([
       c.bold(r.route),
       r.size >= JS_PAYLOAD_SIZE ? c.red(fileSize) : r.size >= (JS_PAYLOAD_SIZE * .8) ? c.yellow(fileSize) : c.cyan(fileSize),
-      r.delta < 0 ? c.red(delta) : r.delta > 0 ? c.green(delta) : c.cyan(delta),
+      r.delta < 0 ? c.red(delta) : r.delta > 0 ? c.green(`+${delta}`) : c.cyan(delta),
     ])
   }
 
