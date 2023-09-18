@@ -3,6 +3,7 @@ const { join, parse } = require('path')
 const Table = require('cli-table3')
 const c = require('@colors/colors/safe')
 const http = require('http')
+const https = require('https')
 const { filesize } = require('filesize')
 
 var oldSizes = {}
@@ -68,9 +69,10 @@ function getAllRoutes (files, base) {
 }
 
 async function readRoute (route) {
-  const url = `http://localhost:3333${route}`
+  const url = new URL(route)
+  const client = url.protocol === 'https:' ? https : http
   return new Promise((resolve, reject) => {
-    const req = http.request(url, (res) => {
+    const req = client.request(url, (res) => {
       let responseBody = ''
       res.on('data', (chunk) => {
         responseBody += chunk
@@ -97,9 +99,9 @@ function calculateDelta (route, size) {
 
 async function calculateJavaScriptPayloadSize (routes, base) {
   let payload = Promise.all(routes.map(async route => {
-    const data = await readRoute(route)
+    const data = await readRoute(`http://localhost:3333${route}`)
     const scriptTags = data.match(/<script[\s\S]*?>[\s\S]*?<\/script>/gi)
-    const size = calculateScriptTagSizes(scriptTags, base)
+    const size = await calculateScriptTagSizes(scriptTags, base)
     return {
       route,
       size,
@@ -109,7 +111,7 @@ async function calculateJavaScriptPayloadSize (routes, base) {
   return payload
 }
 
-function calculateScriptTagSizes (scriptTags, base) {
+async function calculateScriptTagSizes (scriptTags, base) {
   let size = 0
   for (let tag of scriptTags) {
     let src = tag.match(/src=(["'])(.*?)\1/)
@@ -117,6 +119,10 @@ function calculateScriptTagSizes (scriptTags, base) {
       let scriptPath = src[2]
       if (scriptPath.startsWith('/_public')) {
         size += (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString().length
+      }
+      else if (scriptPath.startsWith('https:') || scriptPath.startsWith('http:')) {
+        let data = await readRoute(scriptPath)
+        size += data.toString().length
       }
     }
     else {
