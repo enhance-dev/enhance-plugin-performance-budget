@@ -1,5 +1,5 @@
 const { mkdirSync, readdirSync, statSync, readFileSync, writeFileSync } = require('fs')
-const { join, parse } = require('path')
+const { dirname, join, parse } = require('path')
 const Table = require('cli-table3')
 const c = require('@colors/colors/safe')
 const http = require('http')
@@ -134,14 +134,27 @@ async function calculateScriptTagSizes (scriptTags, base, route) {
     }
     else {
       let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
-      scriptSrcArray.push(matches[1].trim())
+      let type = tag.match(/type=(["'])(.*?)\1/)
+      if (!type) {
+        let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
+        scriptSrcArray.push(code)
+      }
+      else {
+        let typeStr = type[2]
+        if (typeStr.toLowerCase() !== 'application/json') {
+          let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
+          scriptSrcArray.push(code)
+        }
+      }
     }
   }
 
-  mkdirSync(`${base}/.enhance/budget`, { recursive: true })
-  let combinedSrc = `${base}/.enhance/budget${route !== '/' ? `${route}.mjs` : `/index.mjs`}`
+  const cleanRouteName = route.replace('$', '_')
+  let combinedSrc = `${base}/.enhance/budget${cleanRouteName !== '/' ? `${cleanRouteName}.mjs` : `/index.mjs`}`
+  mkdirSync(dirname(combinedSrc), { recursive: true })
   writeFileSync(combinedSrc, scriptSrcArray.join('\n'))
-  let builtSrc = `${base}/.enhance/budget${route !== '/' ? `${route}-out.js` : `/index-out.js`}`
+  let builtSrc = `${base}/.enhance/budget${cleanRouteName !== '/' ? `${cleanRouteName}-out.js` : `/index-out.js`}`
+
   buildSync({
     entryPoints: [ combinedSrc ],
     bundle: true,
