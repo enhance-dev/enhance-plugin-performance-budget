@@ -5,6 +5,7 @@ const c = require('@colors/colors/safe')
 const http = require('http')
 const https = require('https')
 const { filesize } = require('filesize')
+let JS_PAYLOAD_SIZE = null
 
 var oldSizes = {}
 const tableStyle = {
@@ -50,12 +51,15 @@ function printTable (routes) {
     head: [ 'Route', 'JS Size', 'Delta' ],
     ...tableStyle,
   })
-  for (const r of routes)
+  for (const r of routes) {
+    let fileSize = filesize(r.size, { base: 2, standard: 'jedec' })
+    let delta = filesize(r.delta, { base: 2, standard: 'jedec' })
     table.push([
       c.bold(r.route),
-      c.cyan(filesize(r.size, { base: 2, standard: 'jedec' })),
-      r.delta < 0 ? c.red(filesize(r.delta, { base: 2, standard: 'jedec' })) : r.delta > 0 ? c.green(filesize(r.delta, { base: 2, standard: 'jedec' })) : c.cyan(filesize(r.delta, { base: 2, standard: 'jedec' })),
+      r.size >= JS_PAYLOAD_SIZE ? c.red(fileSize) : r.size >= (JS_PAYLOAD_SIZE * .8) ? c.yellow(fileSize) : c.cyan(fileSize),
+      r.delta < 0 ? c.red(delta) : r.delta > 0 ? c.green(delta) : c.cyan(delta),
     ])
+  }
 
   return `\n${table.toString()}`
 }
@@ -159,6 +163,17 @@ module.exports = {
     async watcher ({ inventory }) {
       await reportOnJavaScriptPayloadSize(inventory)
     },
+  },
+  set: {
+    env ({ arc }) {
+      let budget = arc['performance-budget']
+      if (budget) {
+        let payloadRow = budget.find(row => row[0] === 'payload-size')
+        JS_PAYLOAD_SIZE = payloadRow && payloadRow[1]
+        return {
+          JS_PAYLOAD_SIZE
+        }
+      }
+    }
   }
-
 }
