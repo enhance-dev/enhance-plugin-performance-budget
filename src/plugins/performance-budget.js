@@ -1,69 +1,13 @@
-const { mkdirSync, readdirSync, statSync, readFileSync, writeFileSync } = require('fs')
-const { dirname, join, parse } = require('path')
-const Table = require('cli-table3')
-const c = require('@colors/colors/safe')
-const http = require('http')
-const https = require('https')
-const { filesize } = require('filesize')
-const { buildSync } = require('esbuild')
+const { readFileSync } = require('fs')
+const { join, parse } = require('path')
+const { getAllFiles } = require('./lib/filesystem')
+const { printTable } = require('./lib/console')
+const { readRoute } = require('./lib/network')
+const { buildRoute } = require('./lib/build')
+
 let JS_PAYLOAD_SIZE = null
 
 var oldSizes = {}
-const tableStyle = {
-  chars: {
-    bottom: '',
-    'bottom-left': '',
-    'bottom-mid': '',
-    'bottom-right': '',
-    left: '',
-    'left-mid': '',
-    mid: '',
-    middle: '',
-    'mid-mid': '',
-    right: '',
-    'right-mid': '',
-    top: '',
-    'top-left': '',
-    'top-mid': '',
-    'top-right': '',
-  },
-  style: { head: [ 'bold', 'white' ] },
-}
-
-function getAllFiles (dirPath, arrayOfFiles) {
-  let files = readdirSync(dirPath)
-
-  arrayOfFiles = arrayOfFiles || []
-
-  files.forEach(function (file) {
-    if (statSync(join(dirPath, file)).isDirectory()) {
-      arrayOfFiles = getAllFiles(join(dirPath, file), arrayOfFiles)
-    }
-    else {
-      arrayOfFiles.push(join(dirPath, file))
-    }
-  })
-
-  return arrayOfFiles
-}
-
-function printTable (routes) {
-  const table = new Table({
-    head: [ 'Route', 'JS Size', 'Delta' ],
-    ...tableStyle,
-  })
-  for (const r of routes) {
-    let fileSize = filesize(r.size, { base: 2, standard: 'jedec' })
-    let delta = filesize(r.delta, { base: 2, standard: 'jedec' })
-    table.push([
-      c.bold(r.route),
-      r.size >= JS_PAYLOAD_SIZE ? c.red(fileSize) : r.size >= (JS_PAYLOAD_SIZE * .8) ? c.yellow(fileSize) : c.cyan(fileSize),
-      r.delta < 0 ? c.red(delta) : r.delta > 0 ? c.green(`+${delta}`) : c.cyan(delta),
-    ])
-  }
-
-  return `\n${table.toString()}`
-}
 
 function getAllRoutes (files, base) {
   return files.map(file => {
@@ -71,26 +15,6 @@ function getAllRoutes (files, base) {
     let root = routeStr.dir !== routeStr.root ? routeStr.dir : ''
     let name = routeStr.name !== 'index' ? routeStr.name : ''
     return `${root}/${name}`
-  })
-}
-
-async function readRoute (route) {
-  const url = new URL(route)
-  const client = url.protocol === 'https:' ? https : http
-  return new Promise((resolve, reject) => {
-    const req = client.request(url, (res) => {
-      let responseBody = ''
-      res.on('data', (chunk) => {
-        responseBody += chunk
-      })
-      res.on('end', () => {
-        resolve(responseBody)
-      })
-    })
-    req.on('error', (err) => {
-      reject(err)
-    })
-    req.end()
   })
 }
 
@@ -119,48 +43,35 @@ async function calculateJavaScriptPayloadSize (routes, base) {
 
 async function calculateScriptTagSizes (scriptTags, base, route) {
   let scriptSrcArray = []
+  // loop through all the routes script tags
   for (let tag of scriptTags) {
     let src = tag.match(/src=(["'])(.*?)\1/)
+    // <script src=""/>
     if (src) {
       let scriptPath = src[2]
+      // <script src="/_public"/>
       if (scriptPath.startsWith('/_public')) {
         let localScript = (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString()
         scriptSrcArray.push(localScript)
       }
+      // <script src="http(s)://"/>
       else if (scriptPath.startsWith('https:') || scriptPath.startsWith('http:')) {
         let data = await readRoute(scriptPath)
         scriptSrcArray.push(data.toString())
       }
     }
+    // <script><script>
     else {
       let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
       let type = tag.match(/type=(["'])(.*?)\1/)
-      if (!type) {
+      if (!type || (type[2] && type[2].toLowerCase() !== 'application/json')) {
         let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
         scriptSrcArray.push(code)
-      }
-      else {
-        let typeStr = type[2]
-        if (typeStr.toLowerCase() !== 'application/json') {
-          let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
-          scriptSrcArray.push(code)
-        }
       }
     }
   }
 
-  const cleanRouteName = route.replace('$', '_')
-  let combinedSrc = `${base}/.enhance/budget${cleanRouteName !== '/' ? `${cleanRouteName}.mjs` : `/index.mjs`}`
-  mkdirSync(dirname(combinedSrc), { recursive: true })
-  writeFileSync(combinedSrc, scriptSrcArray.join('\n'))
-  let builtSrc = `${base}/.enhance/budget${cleanRouteName !== '/' ? `${cleanRouteName}-out.js` : `/index-out.js`}`
-
-  buildSync({
-    entryPoints: [ combinedSrc ],
-    bundle: true,
-    outfile: builtSrc,
-  })
-
+  let builtSrc = buildRoute(route, base, scriptSrcArray.join('\n'))
   return (readFileSync(builtSrc)).toString().length
 }
 
@@ -178,7 +89,7 @@ async function reportOnJavaScriptPayloadSize (inventory) {
   let routes = getAllRoutes(files, pages)
   let sizes = await calculateJavaScriptPayloadSize(routes, base)
   saveSizes(sizes)
-  console.table(printTable(sizes))
+  console.table(printTable(sizes, JS_PAYLOAD_SIZE))
 }
 
 module.exports = {
