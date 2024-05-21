@@ -43,30 +43,32 @@ async function calculateJavaScriptPayloadSize (routes, base) {
 
 async function calculateScriptTagSizes (scriptTags, base, route) {
   let scriptSrcArray = []
-  // loop through all the routes script tags
-  for (let tag of scriptTags) {
-    let src = tag.match(/src=(["'])(.*?)\1/)
-    // <script src=""/>
-    if (src) {
-      let scriptPath = src[2]
-      // <script src="/_public"/>
-      if (scriptPath.startsWith('/_public')) {
-        let localScript = (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString()
-        scriptSrcArray.push(localScript)
+  if (scriptTags) {
+    // loop through all the routes script tags
+    for (let tag of scriptTags) {
+      let src = tag.match(/src=(["'])(.*?)\1/)
+      // <script src=""/>
+      if (src) {
+        let scriptPath = src[2]
+        // <script src="/_public"/>
+        if (scriptPath.startsWith('/_public')) {
+          let localScript = (readFileSync(scriptPath.replace('/_public', `${base}/public`))).toString()
+          scriptSrcArray.push(localScript)
+        }
+        // <script src="http(s)://"/>
+        else if (scriptPath.startsWith('https:') || scriptPath.startsWith('http:')) {
+          let data = await readRoute(scriptPath)
+          scriptSrcArray.push(data.toString())
+        }
       }
-      // <script src="http(s)://"/>
-      else if (scriptPath.startsWith('https:') || scriptPath.startsWith('http:')) {
-        let data = await readRoute(scriptPath)
-        scriptSrcArray.push(data.toString())
-      }
-    }
-    // <script><script>
-    else {
-      let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
-      let type = tag.match(/type=(["'])(.*?)\1/)
-      if (!type || (type[2] && type[2].toLowerCase() !== 'application/json')) {
-        let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
-        scriptSrcArray.push(code)
+      // <script><script>
+      else {
+        let matches = tag.match(/<script[^>]*>(.*?)<\/script>/s)
+        let type = tag.match(/type=(["'])(.*?)\1/)
+        if (!type || (type[2] && type[2].toLowerCase() !== 'application/json')) {
+          let code = matches[1].replace(/\/_public\//g, `${base}/public/`).trim()
+          scriptSrcArray.push(code)
+        }
       }
     }
   }
