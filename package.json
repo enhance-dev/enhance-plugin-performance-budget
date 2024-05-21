@@ -1,6 +1,6 @@
 {
   "name": "@enhance/enhance-plugin-performance-budget",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A performance budget monitor plugin for Enhance apps",
   "main": "src/plugins/performance-budget.js",
   "scripts": {
