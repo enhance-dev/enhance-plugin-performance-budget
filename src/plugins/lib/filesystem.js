@@ -19,5 +19,5 @@ function getAllFiles (dirPath, arrayOfFiles) {
 }
 
 module.exports = {
-  getAllFiles
+  getAllFiles,
 }

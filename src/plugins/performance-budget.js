@@ -35,7 +35,7 @@ async function calculateJavaScriptPayloadSize (routes, base) {
     return {
       route,
       size,
-      delta: calculateDelta(route, size)
+      delta: calculateDelta(route, size),
     }
   }))
   return payload
@@ -111,9 +111,9 @@ module.exports = {
         let payloadRow = budget.find(row => row[0] === 'payload-size')
         JS_PAYLOAD_SIZE = payloadRow && payloadRow[1]
         return {
-          JS_PAYLOAD_SIZE
+          JS_PAYLOAD_SIZE,
         }
       }
-    }
-  }
+    },
+  },
 }

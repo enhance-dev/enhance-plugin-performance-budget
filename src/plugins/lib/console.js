@@ -43,5 +43,5 @@ function printTable (routes, threshold) {
 }
 
 module.exports = {
-  printTable
+  printTable,
 }

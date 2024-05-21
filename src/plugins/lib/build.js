@@ -18,5 +18,5 @@ function buildRoute (route, base, source) {
 }
 
 module.exports = {
-  buildRoute
+  buildRoute,
 }

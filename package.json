@@ -18,29 +18,12 @@
   },
   "dependencies": {
     "@colors/colors": "^1.6.0",
-    "cli-table3": "^0.6.3",
-    "esbuild": "^0.19.3",
-    "filesize": "^10.0.12"
+    "cli-table3": "^0.6.5",
+    "esbuild": "^0.21.3",
+    "filesize": "^10.1.2"
   },
   "devDependencies": {
-    "@architect/eslint-config": "^2.1.2",
-    "eslint": "^8.49.0"
-  },
-  "eslintConfig": {
-    "extends": "@architect/eslint-config",
-    "overrides": [
-      {
-        "files": [
-          "*"
-        ],
-        "rules": {
-          "filenames/match-regex": [
-            "error",
-            "^[a-z0-9-_.$]+$",
-            true
-          ]
-        }
-      }
-    ]
+    "@architect/eslint-config": "^3.0.0",
+    "eslint": "^9.3.0"
   }
 }

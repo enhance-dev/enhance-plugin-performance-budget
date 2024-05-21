@@ -22,5 +22,5 @@ async function readRoute (route) {
 }
 
 module.exports = {
-  readRoute
+  readRoute,
 }
